@@ -18,11 +18,11 @@ function hexToBuf(hex) {
 
 const argv = require('minimist')(process.argv.slice(2));
 const keyHex = argv.key || argv.k;
-const tunIp = argv['tun-ip'] || '10.0.0.1/24';
+const tunIp = argv['tunip'] || '10.0.0.1/24';
 const listenPort = argv.port || 5555;
 
 if (!keyHex) {
-  console.error('Usage: node server.js --key <hexkey(64chars)> [--tun-ip 10.0.0.1/24] [--port 5555]');
+  console.error('Usage: node server.js --key <hexkey(64chars)> [--tunip 10.0.0.1/24] [--port 5555]');
   process.exit(1);
 }
 
