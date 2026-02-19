@@ -1,0 +1,11 @@
+{
+  "name": "vpn-proxy-server",
+  "version": "0.1.0",
+  "main": "server.js",
+  "dependencies": {
+    "minimist": "^1.2.8"
+  },
+  "scripts": {
+    "start": "node server.js"
+  }
+}
