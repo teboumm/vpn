@@ -111,16 +111,62 @@ const server = net.createServer((sock) => {
             console.error('Error writing to TUN:', e.message);
           }
         } else {
-          // No TUN available in this environment — echo back a response for testing
-          try {
-            const resp = Buffer.concat([Buffer.from('ECHO:'), plain]);
-            const frame = encryptFrame(resp);
-            const len = Buffer.alloc(4);
-            len.writeUInt32BE(frame.length, 0);
-            sock.write(Buffer.concat([len, frame]));
-            console.log('Echoed response of length', resp.length);
-          } catch (e) {
-            console.error('Error sending echo response:', e.message);
+          // No TUN available in this environment — support FETCH:<url> to proxy HTTP(S) for testing
+          const text = plain.toString();
+          if (text.startsWith('FETCH:')) {
+            const url = text.slice(6).trim();
+            console.log('Fetch request for', url);
+            (async () => {
+              try {
+                const u = new URL(url);
+                const proto = u.protocol === 'https:' ? require('https') : require('http');
+                const opts = { method: 'GET', timeout: 5000 };
+                const data = await new Promise((resolve, reject) => {
+                  const req = proto.request(u, opts, (res) => {
+                    let bufs = [];
+                    let received = 0;
+                    res.on('data', (chunk) => {
+                      if (received < 65536) {
+                        bufs.push(chunk);
+                        received += chunk.length;
+                      }
+                    });
+                    res.on('end', () => resolve(Buffer.concat(bufs)));
+                  });
+                  req.on('error', reject);
+                  req.on('timeout', () => { req.destroy(new Error('timeout')); });
+                  req.end();
+                });
+                const resp = Buffer.concat([Buffer.from('FETCHRESP:'), data.slice(0, 65536)]);
+                const frame = encryptFrame(resp);
+                const len = Buffer.alloc(4);
+                len.writeUInt32BE(frame.length, 0);
+                sock.write(Buffer.concat([len, frame]));
+                console.log('Sent fetch response', resp.length);
+              } catch (e) {
+                console.error('Fetch error:', e.message);
+                try {
+                  const errb = Buffer.from('FETCHERR:' + e.message);
+                  const frame = encryptFrame(errb);
+                  const len = Buffer.alloc(4);
+                  len.writeUInt32BE(frame.length, 0);
+                  sock.write(Buffer.concat([len, frame]));
+                } catch (ee) {
+                  console.error('Error sending fetch error response:', ee.message);
+                }
+              }
+            })();
+          } else {
+            try {
+              const resp = Buffer.concat([Buffer.from('ECHO:'), plain]);
+              const frame = encryptFrame(resp);
+              const len = Buffer.alloc(4);
+              len.writeUInt32BE(frame.length, 0);
+              sock.write(Buffer.concat([len, frame]));
+              console.log('Echoed response of length', resp.length);
+            } catch (e) {
+              console.error('Error sending echo response:', e.message);
+            }
           }
         }
       } catch (e) {
