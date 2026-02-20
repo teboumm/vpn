@@ -8,3 +8,13 @@ Decrypted payload length 28
 Fetch request for https://www.google.com
 Sent fetch response 51627
 Client disconnected
+Client connected from ::ffff:127.0.0.1
+Decrypted payload length 24
+Fetch request for https://google.com
+Client disconnected
+Sent fetch response 230
+Client connected from ::ffff:127.0.0.1
+Decrypted payload length 28
+Fetch request for https://www.google.com
+Sent fetch response 51597
+Client disconnected
