@@ -6,5 +6,5 @@ HTTP status on :8080
 Client connected from ::ffff:127.0.0.1
 Decrypted payload length 28
 Fetch request for https://www.google.com
-Sent fetch response 51630
+Sent fetch response 51627
 Client disconnected
