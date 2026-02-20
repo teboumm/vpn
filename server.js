@@ -18,11 +18,11 @@ function hexToBuf(hex) {
 
 const argv = require('minimist')(process.argv.slice(2));
 const keyHex = argv.key || argv.k;
-const tunIp = argv['tunip'] || '10.0.0.1/24';
-const listenPort = argv.port || 5555;
+const tunIpArg = argv['tun-ip'] || argv['tunip'] || argv['tun_ip'] || argv.tunIp || '10.0.0.1/24';
+const listenPort = argv.port || argv.p || 5555;
 
 if (!keyHex) {
-  console.error('Usage: node server.js --key <hexkey(64chars)> [--tunip 10.0.0.1/24] [--port 5555]');
+  console.error('Usage: node server.js --key <hexkey(64chars)> [--tun-ip 10.0.0.1/24] [--port 5555]');
   process.exit(1);
 }
 
@@ -32,12 +32,23 @@ if (key.length !== 32) {
   process.exit(1);
 }
 
-// create tun device if tuntap present
+// parse tun ip/prefix
 let tun = null;
+let tunAddr = '10.0.0.1';
+let tunMask = 24;
+if (tunIpArg) {
+  const parts = tunIpArg.split('/');
+  tunAddr = parts[0] || tunAddr;
+  if (parts[1]) {
+    const m = parseInt(parts[1], 10);
+    if (!isNaN(m) && m > 0 && m <= 32) tunMask = m;
+  }
+}
+
 if (Tun) {
   try {
-    tun = new Tun({ name: 'tun0', addr: tunIp.split('/')[0], mask: 24, mtu: 1500, persist: false });
-    console.log('TUN created: tun0', tunIp);
+    tun = new Tun({ name: 'tun0', addr: tunAddr, mask: tunMask, mtu: 1500, persist: false });
+    console.log('TUN created: tun0', `${tunAddr}/${tunMask}`);
   } catch (e) {
     console.error('Failed to create TUN device:', e.message);
     tun = null;
@@ -92,7 +103,26 @@ const server = net.createServer((sock) => {
       state.buf = state.buf.slice(4 + payloadLen);
       try {
         const plain = decryptFrame(payload);
-        tun.write(plain);
+        console.log('Decrypted payload length', plain.length);
+        if (tun) {
+          try {
+            tun.write(plain);
+          } catch (e) {
+            console.error('Error writing to TUN:', e.message);
+          }
+        } else {
+          // No TUN available in this environment — echo back a response for testing
+          try {
+            const resp = Buffer.concat([Buffer.from('ECHO:'), plain]);
+            const frame = encryptFrame(resp);
+            const len = Buffer.alloc(4);
+            len.writeUInt32BE(frame.length, 0);
+            sock.write(Buffer.concat([len, frame]));
+            console.log('Echoed response of length', resp.length);
+          } catch (e) {
+            console.error('Error sending echo response:', e.message);
+          }
+        }
       } catch (e) {
         console.error('Decrypt/write error', e.message);
       }
@@ -109,7 +139,7 @@ server.listen(listenPort, () => { console.log('Server listening on', listenPort)
 http.createServer((req, res) => {
   if (req.url === '/status') {
     res.writeHead(200, {'Content-Type':'application/json'});
-    res.end(JSON.stringify({tun:'tun0', client: clientSocket?clientSocket.remoteAddress:null}));
+    res.end(JSON.stringify({tun: tun ? (`tun0:${tunAddr}/${tunMask}`) : 'unsupported', client: clientSocket?clientSocket.remoteAddress:null}));
   } else {
     res.writeHead(200, {'Content-Type':'text/plain'});
     res.end('VPN proxy server\n');

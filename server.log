@@ -1,0 +1,10 @@
+nohup: ignoring input
+tuntap module not available — running without TUN support
+TUN unsupported in this environment
+Server listening on 5555
+HTTP status on :8080
+Client connected from ::ffff:127.0.0.1
+Decrypted payload length 28
+Fetch request for https://www.google.com
+Sent fetch response 51630
+Client disconnected
