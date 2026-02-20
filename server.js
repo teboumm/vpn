@@ -95,6 +95,8 @@ const server = net.createServer((sock) => {
   let state = { buf: Buffer.alloc(0) };
 
   sock.on('data', (data) => {
+    console.log(data);
+    
     state.buf = Buffer.concat([state.buf, data]);
     while (state.buf.length >= 4) {
       const payloadLen = state.buf.readUInt32BE(0);
